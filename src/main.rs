@@ -23,6 +23,10 @@ async fn main() ->  Result<()> {
     let hot_wallet = env::var("BAN_HOT_WALLET").expect("Missing BAN_HOT_WALLET env variable");
     let cold_wallet = env::var("BAN_COLD_WALLET").expect("Missing BAN_COLD_WALLET env variable");
     let threshold_percentage = env::var("THRESHOLD_PERCENTAGE").expect("Missing THRESHOLD_PERCENTAGE env variable");
+    let users: Vec<String> = env::var("REDDIT_BOT_DM_USERS").expect("Missing REDDIT_BOT_DM_USERS env variable")
+        .split_whitespace()
+        .map(|user| String::from(user))
+        .collect();
 
     println!("Balances:");
 
@@ -52,7 +56,7 @@ async fn main() ->  Result<()> {
         .checked_add(pending_withdrawals_balance).unwrap()
         .checked_sub(hot_wallet_balance).unwrap();
 
-    let notifier: Box<dyn Notifier> = RedditNotifier::new(vec!(String::from("wrap-that-potassium")));
+    let notifier: Box<dyn Notifier> = RedditNotifier::new(users);
     if needed_extra_balance.is_sign_positive() && !needed_extra_balance.is_zero() {
         let message = format!("I need {:#?} BAN to be sent to hot wallet \"{}\", in order to reach {:#?}% of users deposits.",
             needed_extra_balance.ceil(), &hot_wallet, percentage
