@@ -33,18 +33,21 @@ impl Banano {
             .send().await?
             .json().await?;
 
-        let mut raw_balance: String = response.balance.clone();
-        Ok(self.convert_raw_balance(&mut raw_balance))
+        let balance: Decimal = self.convert_raw_balance(response.balance.clone());
+        let pending: Decimal = self.convert_raw_balance(response.pending.clone());
+        let total: Decimal = balance.checked_add(pending).unwrap();
+        Ok(total)
     }
 
-    fn convert_raw_balance(&self, raw_balance: &mut String) -> Decimal {
+    fn convert_raw_balance(&self, raw_balance: String) -> Decimal {
         if raw_balance == "0" {
             return Decimal::from(0)
         }
         
-        raw_balance.truncate(raw_balance.len() - 11);
+        let mut balance: String = raw_balance.clone();
+        balance.truncate(balance.len() - 11);
 
-        let mut balance: Decimal = Decimal::from_str_radix(raw_balance.as_str(), 10).unwrap();
+        let mut balance: Decimal = Decimal::from_str_radix(balance.as_str(), 10).unwrap();
         balance.set_scale(18).unwrap();
 
         balance
