@@ -724,6 +724,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "roux"
+version = "1.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9583174cf1b542a9b9dab75987a1b425fadca723900e7b78c05fd9e62743ea72"
+dependencies = [
+ "reqwest",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "rust_decimal"
 version = "1.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1126,6 +1137,7 @@ dependencies = [
  "async-trait",
  "error-chain",
  "reqwest",
+ "roux",
  "rust_decimal",
  "serde",
  "serde_json",

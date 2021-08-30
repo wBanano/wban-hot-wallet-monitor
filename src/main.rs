@@ -62,7 +62,7 @@ async fn main() ->  Result<()> {
             needed_extra_balance.ceil(), &hot_wallet, percentage
         );
         println!("{}", message);
-        notifier.ask_for_cold_wallet_funds(&message).await?;
+        notifier.ask_for_cold_wallet_funds(&message).await.unwrap();
     } else {
         println!("No need for more BAN!");
     }
