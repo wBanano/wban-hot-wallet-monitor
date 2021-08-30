@@ -1,12 +1,13 @@
 mod banano;
 mod wban;
-mod reddit;
+mod notifiers;
 
 use crate::banano::Banano;
 use crate::wban::WBan;
-use crate::reddit::{Notifier, RedditNotifier};
+use crate::notifiers::{Notifier, TelegramNotifier};
 use error_chain::error_chain;
 use rust_decimal::Decimal;
+use dotenv::dotenv;
 use std::env;
 
 error_chain! {
@@ -18,15 +19,20 @@ error_chain! {
 
 #[tokio::main]
 async fn main() ->  Result<()> {
+    dotenv().ok(); // Read .env and set env variables with this
+
     let wban_api = env::var("WBAN_API").expect("Missing WBAN_API env variable");
+    let blockchain_network = env::var("BLOCKCHAIN_NETWORK").unwrap_or(String::from("BSC"));
     let banano_rpc_api = env::var("BAN_RPC_API").expect("Missing BAN_RPC_API env variable");
     let hot_wallet = env::var("BAN_HOT_WALLET").expect("Missing BAN_HOT_WALLET env variable");
     let cold_wallet = env::var("BAN_COLD_WALLET").expect("Missing BAN_COLD_WALLET env variable");
     let threshold_percentage = env::var("THRESHOLD_PERCENTAGE").expect("Missing THRESHOLD_PERCENTAGE env variable");
+    /*
     let users: Vec<String> = env::var("REDDIT_BOT_DM_USERS").expect("Missing REDDIT_BOT_DM_USERS env variable")
         .split_whitespace()
         .map(|user| String::from(user))
         .collect();
+    */
 
     println!("Balances:");
 
@@ -45,7 +51,6 @@ async fn main() ->  Result<()> {
     let pending_withdrawals_balance: Decimal = wban.fetch_pending_withdrawals_balance().await?;
     println!("Pending withdrawals: {:#?} BAN\n", pending_withdrawals_balance);
 
-    
     let percentage: Decimal = Decimal::from_str_radix(threshold_percentage.as_str(), 10).unwrap();
     let threshold: Decimal = percentage.checked_div(Decimal::from(100)).unwrap();
 
@@ -56,10 +61,10 @@ async fn main() ->  Result<()> {
         .checked_add(pending_withdrawals_balance).unwrap()
         .checked_sub(hot_wallet_balance).unwrap();
 
-    let notifier: Box<dyn Notifier> = RedditNotifier::new(users);
+    let notifier: Box<dyn Notifier> = TelegramNotifier::new();
     if needed_extra_balance.is_sign_positive() && !needed_extra_balance.is_zero() {
-        let message = format!("I need {:#?} BAN to be sent to hot wallet \"{}\", in order to reach {:#?}% of users deposits.",
-            needed_extra_balance.ceil(), &hot_wallet, percentage
+        let message = format!("I need `{:#?}` BAN to be sent to *{}* hot wallet `{}`, in order to reach {:#?}% of users deposits",
+            needed_extra_balance.ceil(), &blockchain_network, &hot_wallet, percentage
         );
         println!("{}", message);
         notifier.ask_for_cold_wallet_funds(&message).await.unwrap();
