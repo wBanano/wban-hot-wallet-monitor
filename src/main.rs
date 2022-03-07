@@ -5,17 +5,10 @@ mod notifiers;
 use crate::banano::Banano;
 use crate::wban::WBan;
 use crate::notifiers::{Notifier, TelegramNotifier};
-use error_chain::error_chain;
 use rust_decimal::Decimal;
 use dotenv::dotenv;
 use std::env;
-
-error_chain! {
-    foreign_links {
-        EnvVar(env::VarError);
-        HttpRequest(reqwest::Error);
-    }
-}
+use anyhow::{Context, Result};
 
 #[tokio::main]
 async fn main() ->  Result<()> {
@@ -38,10 +31,10 @@ async fn main() ->  Result<()> {
 
     let banano = Banano::new(banano_rpc_api);
     let hot_wallet_balance: Decimal = banano.get_banano_balance(&hot_wallet).await?;
-    let cold_wallet_balance: Decimal = banano.get_banano_balance(&cold_wallet).await?;
+    let cold_wallet_balance: Decimal = banano.get_banano_balance_with_pending(&cold_wallet).await?;
     let total_users_deposits_balance: Decimal = hot_wallet_balance
         .checked_add(cold_wallet_balance)
-        .unwrap();
+        .context("Overflow when adding hot and cold BAN balances")?;
     println!("\tHot wallet:\t\t{:#?} BAN", hot_wallet_balance);
     println!("\tCold wallet:\t\t{:#?} BAN", cold_wallet_balance);
     println!("\t\t\t\t----------------------");
@@ -61,12 +54,12 @@ async fn main() ->  Result<()> {
         .checked_add(pending_withdrawals_balance).unwrap()
         .checked_sub(hot_wallet_balance).unwrap();
 
-    let notifier: Box<dyn Notifier> = TelegramNotifier::new();
     if needed_extra_balance.is_sign_positive() && !needed_extra_balance.is_zero() {
         let message = format!("I need `{:#?}` BAN to be sent to *{}* hot wallet `{}`, in order to reach {:#?}% of users deposits",
             needed_extra_balance.ceil(), &blockchain_network, &hot_wallet, percentage
         );
         println!("{}", message);
+        let notifier: Box<dyn Notifier> = TelegramNotifier::new();
         notifier.ask_for_cold_wallet_funds(&message).await.unwrap();
     } else {
         println!("No need for more BAN!");
